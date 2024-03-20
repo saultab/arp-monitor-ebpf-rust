@@ -4,28 +4,8 @@ use aya::{include_bytes_aligned, Ebpf};
 use aya::maps::{RingBuf};
 use aya_log::EbpfLogger;
 use clap::Parser;
-use log::{info, warn, debug};
-use arp_common::Event;
+use log::{warn, debug};
 use chrono::{Local};
-//use tokio::signal;
-
-struct PollFd<T>(T);
-
-fn poll_fd<T>(t: T) -> PollFd<T> { PollFd(t) }
-
-impl<T> PollFd<T> {
-    fn readable(&mut self) -> Guard<'_, T> { Guard(self) }
-}
-
-struct Guard<'a, T>(&'a mut PollFd<T>);
-
-impl<T> Guard<'_, T> {
-    fn inner_mut(&mut self) -> &mut T {
-        let Guard(PollFd(t)) = self;
-        t
-    }
-    fn clear_ready(&mut self) {}
-}
 
 fn opcode_to_text(opcode: u16) -> &'static str {
     match opcode {
@@ -80,7 +60,7 @@ async fn main() -> Result<(), anyhow::Error> {
     let program: &mut SchedClassifier = bpf.program_mut("arp").unwrap().try_into()?;
     program.load()?;
     program.attach(&opt.iface, TcAttachType::Egress)?;
-    //program.attach(&opt.iface, TcAttachType::Ingress)?;
+    program.attach(&opt.iface, TcAttachType::Ingress)?;
 
     /* Process events */
     println!("TIME\t\tTYPE\t\tSENDER MAC\t\tSENDER IP\t\tTARGET MAC\t\tTARGET IP");
@@ -88,12 +68,7 @@ async fn main() -> Result<(), anyhow::Error> {
     let mut ring_buf = RingBuf::try_from(bpf.map_mut("RINGBUF").unwrap()).unwrap();
     loop {
         while let Some(event) = ring_buf.next() {
-            // println!("\nEvent:");
-            // for i in 0..22 {
-            //     print!("{:?} ", event.deref()[i]);
-            // }
-
-            //Ciò che andrebbe fatto per bene...
+            // TODO
             // let e :Event= event.try_into().unwrap();
 
             let ts = Local::now().format("%H:%M:%S");
@@ -101,7 +76,7 @@ async fn main() -> Result<(), anyhow::Error> {
 
             println!("{:<8}\t{:<8}\t\
                     {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}\t\
-                    {}.{}.{}.{}\t\t\t\
+                    {}.{}.{}.{}\t\t\
                     {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}\t\
                     {}.{}.{}.{}",
                      ts, opcode_to_text(ptr[0] as u16),
@@ -112,7 +87,6 @@ async fn main() -> Result<(), anyhow::Error> {
             );
         }
     }
-
 
     // info!("Waiting for Ctrl-C...");
     // signal::ctrl_c().await?;

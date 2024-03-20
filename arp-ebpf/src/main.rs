@@ -1,34 +1,11 @@
 #![no_std]
 #![no_main]
-
-use core::convert::TryInto;
-use aya_ebpf::{maps::RingBuf, cty::c_int, macros::{classifier, map}, bindings::{TC_ACT_OK, TC_ACT_SHOT}, programs::TcContext};
-use aya_log_ebpf::info;
+use aya_ebpf::{maps::RingBuf, macros::{classifier, map}, bindings::{TC_ACT_OK, TC_ACT_SHOT}, programs::TcContext};
 use core::mem;
-use arp_common::Event;
+use arp_common::{Event, ArpHdr};
 use network_types::{
     eth::{EthHdr, EtherType}
 };
-#[allow(dead_code)]
-struct ArpHdr {
-    ar_hrd: u16,
-    // format of hardware address
-    ar_pro: u16,
-    // format of protocol address
-    ar_hln: u8,
-    // length of hardware address
-    ar_pln: u8,
-    // length of protocol address
-    ar_op: u16,
-    // ARP opcode (command)
-    ar_sha: [u8; 6],
-    // sender hardware address
-    ar_sip: [u8; 4],
-    // sender IP address
-    ar_tha: [u8; 6],
-    // target hardware address
-    ar_tip: [u8; 4],        // target IP address
-}
 
 #[map]
 static RINGBUF: RingBuf = RingBuf::with_byte_size(256 * 1024, 0); // 256 KB
@@ -56,20 +33,20 @@ pub fn arp(ctx: TcContext) -> i32 {
 }
 
 fn try_arp(ctx: TcContext) -> Result<i32, ()> {
-    //info!(&ctx, "received a packet");
 
-    // Use match per gestire correttamente il Result
+    /* Retrieve pointers */
     let ethhdr: *const EthHdr = match ptr_at(&ctx, 0) {
         Ok(ptr) => ptr,
         Err(()) => return Ok(TC_ACT_OK)
     };
 
-    // Select only Arp
+    /* Check if packet is ARP */
     match unsafe { (*ethhdr).ether_type } {
         EtherType::Arp => {}
         _ => return Ok(TC_ACT_OK),
     }
 
+    /* Interpret the packet */
     let arp: ArpHdr = ctx.load(EthHdr::LEN).map_err(|_| ())?;
 
     /* Reserve the packet to the ring buffer */
@@ -82,11 +59,6 @@ fn try_arp(ctx: TcContext) -> Result<i32, ()> {
             ar_tha: arp.ar_tha,
             ar_tip: arp.ar_tip,
         };
-
-        //DEBUG
-        // let s:c_int = mem::size_of::<Event>().try_into().unwrap();
-        // let s2:c_int = mem::align_of::<Event>().try_into().unwrap();
-        // info!(&ctx,"Dimensione struttura: {} byte con allineamento {}",s,s2);
 
         /* Submit the packet to the ring buffer */
         buf.write(e);
