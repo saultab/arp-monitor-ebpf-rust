@@ -1,24 +1,32 @@
 #![no_std]
 #![no_main]
 
-use aya_ebpf::{maps::RingBuf, macros::{classifier,map}, bindings::{TC_ACT_OK,TC_ACT_SHOT}, programs::TcContext};
+use core::convert::TryInto;
+use aya_ebpf::{maps::RingBuf, cty::c_int, macros::{classifier, map}, bindings::{TC_ACT_OK, TC_ACT_SHOT}, programs::TcContext};
 use aya_log_ebpf::info;
 use core::mem;
 use arp_common::Event;
 use network_types::{
     eth::{EthHdr, EtherType}
 };
-
 #[allow(dead_code)]
 struct ArpHdr {
-    ar_hrd: u16,            // format of hardware address
-    ar_pro: u16,            // format of protocol address
-    ar_hln: u8,             // length of hardware address
-    ar_pln: u8,             // length of protocol address
-    ar_op: u16,             // ARP opcode (command)
-    ar_sha: [u8; 6],        // sender hardware address
-    ar_sip: [u8; 4],        // sender IP address
-    ar_tha: [u8; 6],        // target hardware address
+    ar_hrd: u16,
+    // format of hardware address
+    ar_pro: u16,
+    // format of protocol address
+    ar_hln: u8,
+    // length of hardware address
+    ar_pln: u8,
+    // length of protocol address
+    ar_op: u16,
+    // ARP opcode (command)
+    ar_sha: [u8; 6],
+    // sender hardware address
+    ar_sip: [u8; 4],
+    // sender IP address
+    ar_tha: [u8; 6],
+    // target hardware address
     ar_tip: [u8; 4],        // target IP address
 }
 
@@ -66,15 +74,19 @@ fn try_arp(ctx: TcContext) -> Result<i32, ()> {
 
     /* Reserve the packet to the ring buffer */
     if let Some(mut buf) = RINGBUF.reserve::<Event>(0) {
-
         /* Copy fields from packet to the event struct */
-        let e: Event = Event{
-            ar_op: arp.ar_op,
+        let e: Event = Event {
+            ar_op: u16::from_be(arp.ar_op),
             ar_sha: arp.ar_sha,
             ar_sip: arp.ar_sip,
             ar_tha: arp.ar_tha,
-            ar_tip:arp.ar_tip,
+            ar_tip: arp.ar_tip,
         };
+
+        //DEBUG
+        // let s:c_int = mem::size_of::<Event>().try_into().unwrap();
+        // let s2:c_int = mem::align_of::<Event>().try_into().unwrap();
+        // info!(&ctx,"Dimensione struttura: {} byte con allineamento {}",s,s2);
 
         /* Submit the packet to the ring buffer */
         buf.write(e);

@@ -1,8 +1,8 @@
 # arp
 
 ## Prerequisites
-
-1. Install bpf-linker: `cargo install bpf-linker`
+1. Install rust `https://rustup.rs/`
+2. Install bpf-linker: `cargo install bpf-linker`
 
 ## Build eBPF
 

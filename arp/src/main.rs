@@ -1,7 +1,7 @@
 use std::ops::Deref;
 use aya::programs::{tc, SchedClassifier, TcAttachType};
 use aya::{include_bytes_aligned, Ebpf};
-use aya::maps::RingBuf;
+use aya::maps::{RingBuf};
 use aya_log::EbpfLogger;
 use clap::Parser;
 use log::{info, warn, debug};
@@ -37,7 +37,7 @@ fn opcode_to_text(opcode: u16) -> &'static str {
 
 #[derive(Debug, Parser)]
 struct Opt {
-    #[clap(short, long, default_value = "eth0")]
+    #[clap(short, long, default_value = "wlo1")]
     iface: String,
 }
 
@@ -80,35 +80,37 @@ async fn main() -> Result<(), anyhow::Error> {
     let program: &mut SchedClassifier = bpf.program_mut("arp").unwrap().try_into()?;
     program.load()?;
     program.attach(&opt.iface, TcAttachType::Egress)?;
+    //program.attach(&opt.iface, TcAttachType::Ingress)?;
 
     /* Process events */
     println!("TIME\t\tTYPE\t\tSENDER MAC\t\tSENDER IP\t\tTARGET MAC\t\tTARGET IP");
 
     let mut ring_buf = RingBuf::try_from(bpf.map_mut("RINGBUF").unwrap()).unwrap();
-    let mut poll = poll_fd(ring_buf);
     loop {
-        let mut guard = poll.readable();
-        let ring_buf = guard.inner_mut();
         while let Some(event) = ring_buf.next() {
-            println!("Event:");
-            println!("{:?}",event.deref());
+            // println!("\nEvent:");
+            // for i in 0..22 {
+            //     print!("{:?} ", event.deref()[i]);
+            // }
 
-            //let e :Event= event.try_into().unwrap();
-            // let ts = Local::now().format("%H:%M:%S");
-            //
-            // println!("{:<8}\t{:<8}\t\
-            //         {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}\t\
-            //         {}.{}.{}.{}\t\
-            //         {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}\t\
-            //         {}.{}.{}.{}",
-            //          ts, opcode_to_text(e.ar_op),
-            //          e.ar_sha[0], e.ar_sha[1], e.ar_sha[2], e.ar_sha[3], e.ar_sha[4], e.ar_sha[5],
-            //          e.ar_sip[0], e.ar_sip[1], e.ar_sip[2], e.ar_sip[3],
-            //          e.ar_tha[0], e.ar_tha[1], e.ar_tha[2], e.ar_tha[3], e.ar_tha[4], e.ar_tha[5],
-            //          e.ar_tip[0], e.ar_tip[1], e.ar_tip[2], e.ar_tip[3]
-            // );
+            //Ciò che andrebbe fatto per bene...
+            // let e :Event= event.try_into().unwrap();
+
+            let ts = Local::now().format("%H:%M:%S");
+            let ptr = event.deref();
+
+            println!("{:<8}\t{:<8}\t\
+                    {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}\t\
+                    {}.{}.{}.{}\t\t\t\
+                    {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}\t\
+                    {}.{}.{}.{}",
+                     ts, opcode_to_text(ptr[0] as u16),
+                     ptr[2],ptr[3],ptr[4],ptr[5],ptr[6],ptr[7],
+                     ptr[8],ptr[9],ptr[10],ptr[11],
+                     ptr[12],ptr[13],ptr[14],ptr[15],ptr[16],ptr[17],
+                     ptr[18],ptr[19],ptr[20],ptr[21]
+            );
         }
-        guard.clear_ready();
     }
 
 
