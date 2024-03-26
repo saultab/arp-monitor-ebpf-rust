@@ -1,4 +1,5 @@
-# arp
+# arp-sniffer-ebpf-rust
+Program for the arp monitoring with eBPF using TC like hook point
 
 ## Prerequisites
 1. Install rust `https://rustup.rs/`
@@ -22,5 +23,5 @@ cargo build
 ## Run
 
 ```bash
-RUST_LOG=info cargo xtask run
+RUST_LOG=info cargo xtask run -- --iface <ifname>
 ```
