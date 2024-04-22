@@ -1,2 +1,3 @@
 [workspace]
 members = ["xtask", "arp", "arp-common"]
+resolver = "2"
