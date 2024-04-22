@@ -1,4 +1,4 @@
-# arp-sniffer-ebpf-rust
+# arp-monitor-ebpf-rust
 Program for the arp monitoring with eBPF using TC like hook point
 
 ## Prerequisites
