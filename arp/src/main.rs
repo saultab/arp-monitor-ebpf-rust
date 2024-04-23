@@ -2,6 +2,7 @@ use std::ops::Deref;
 use aya::programs::{tc, SchedClassifier, TcAttachType};
 use aya::{include_bytes_aligned, Ebpf};
 use aya::maps::{RingBuf};
+use aya::programs::tc::TcOptions;
 use aya_log::EbpfLogger;
 use clap::Parser;
 use log::{warn, debug};
@@ -59,8 +60,19 @@ async fn main() -> Result<(), anyhow::Error> {
     let _ = tc::qdisc_add_clsact(&opt.iface);
     let program: &mut SchedClassifier = bpf.program_mut("arp").unwrap().try_into()?;
     program.load()?;
-    program.attach(&opt.iface, TcAttachType::Egress)?;
-    program.attach(&opt.iface, TcAttachType::Ingress)?;
+
+    let op1 = TcOptions {
+        priority: 65535,
+        handle: 0,
+    };
+
+    let op2 = TcOptions {
+        priority: 65535,
+        handle: 0,
+    };
+
+    program.attach_with_options(&opt.iface, TcAttachType::Egress, op1)?;
+    program.attach_with_options(&opt.iface, TcAttachType::Ingress, op2)?;
 
     /* Process events */
     println!("TIME\t\tTYPE\t\tSENDER MAC\t\tSENDER IP\t\tTARGET MAC\t\tTARGET IP");
