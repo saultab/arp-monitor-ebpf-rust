@@ -1,6 +1,6 @@
 mod build_ebpf;
 mod run;
-
+use aya::Ebpf;
 use std::process::exit;
 
 use clap::Parser;

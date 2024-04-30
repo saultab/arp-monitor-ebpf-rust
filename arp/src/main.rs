@@ -1,3 +1,4 @@
+use std::fs::File;
 use std::ops::Deref;
 use aya::programs::{tc, SchedClassifier, TcAttachType};
 use aya::{include_bytes_aligned, Ebpf};
@@ -7,6 +8,7 @@ use aya_log::EbpfLogger;
 use clap::Parser;
 use log::{warn, debug};
 use chrono::{Local};
+use std::io::Write;
 
 fn opcode_to_text(opcode: u16) -> &'static str {
     match opcode {
@@ -18,7 +20,7 @@ fn opcode_to_text(opcode: u16) -> &'static str {
 
 #[derive(Debug, Parser)]
 struct Opt {
-    #[clap(short, long, default_value = "wlo1")]
+    #[clap(short, long, default_value = "eth0")]
     iface: String,
 }
 
@@ -48,7 +50,7 @@ async fn main() -> Result<(), anyhow::Error> {
         "../../target/bpfel-unknown-none/debug/arp"
     ))?;
     #[cfg(not(debug_assertions))]
-        let mut bpf = Bpf::load(include_bytes_aligned!(
+        let mut bpf = Ebpf::load(include_bytes_aligned!(
         "../../target/bpfel-unknown-none/release/arp"
     ))?;
     if let Err(e) = EbpfLogger::init(&mut bpf) {
@@ -78,6 +80,13 @@ async fn main() -> Result<(), anyhow::Error> {
     println!("TIME\t\tTYPE\t\tSENDER MAC\t\tSENDER IP\t\tTARGET MAC\t\tTARGET IP");
 
     let mut ring_buf = RingBuf::try_from(bpf.map_mut("RINGBUF").unwrap()).unwrap();
+    // Open file
+    let ts = Local::now().format("%d-%m-%Y %H:%M:%S").to_string();
+    let filename = format!("arp - {}.txt", ts);
+    let mut file = File::create(filename)?;
+
+    writeln!(file,"TIME\t\tTYPE\t\tSENDER MAC\t\tSENDER IP\t\tTARGET MAC\t\tTARGET IP")?;
+
     loop {
         while let Some(event) = ring_buf.next() {
             // TODO
@@ -92,11 +101,24 @@ async fn main() -> Result<(), anyhow::Error> {
                     {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}\t\
                     {}.{}.{}.{}",
                      ts, opcode_to_text(ptr[0] as u16),
-                     ptr[2],ptr[3],ptr[4],ptr[5],ptr[6],ptr[7],
-                     ptr[8],ptr[9],ptr[10],ptr[11],
-                     ptr[12],ptr[13],ptr[14],ptr[15],ptr[16],ptr[17],
-                     ptr[18],ptr[19],ptr[20],ptr[21]
-            );
+                     ptr[2], ptr[3], ptr[4], ptr[5], ptr[6], ptr[7],
+                     ptr[8], ptr[9], ptr[10], ptr[11],
+                     ptr[12], ptr[13], ptr[14], ptr[15], ptr[16], ptr[17],
+                     ptr[18], ptr[19], ptr[20], ptr[21]);
+
+            // Write on file
+            writeln!(file,
+                "{:<8}\t{:<8}\t\
+                 {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}\t\
+                 {}.{}.{}.{}\t\t\
+                 {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}\t\
+                 {}.{}.{}.{}",
+                 ts,
+                 opcode_to_text(ptr[0] as u16),
+                 ptr[2], ptr[3], ptr[4], ptr[5], ptr[6], ptr[7],
+                 ptr[8], ptr[9], ptr[10], ptr[11],
+                 ptr[12], ptr[13], ptr[14], ptr[15], ptr[16], ptr[17],
+                 ptr[18], ptr[19], ptr[20], ptr[21])?;
         }
     }
 
