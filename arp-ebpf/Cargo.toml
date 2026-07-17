@@ -1,13 +1,13 @@
 [package]
 name = "arp-ebpf"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 
 [dependencies]
-aya-ebpf = { git = "https://github.com/aya-rs/aya" }
-aya-log-ebpf = { git = "https://github.com/aya-rs/aya" }
+aya-ebpf = "0.2"
+aya-log-ebpf = "0.2"
 arp-common = { path = "../arp-common" }
-network-types = "0.0.5"
+network-types = "0.0.7"
 
 [[bin]]
 name = "arp"

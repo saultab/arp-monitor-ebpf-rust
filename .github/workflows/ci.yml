@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: Check & Lint (userspace)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-action/setup@v1
+        with:
+          toolchain: stable
+          components: clippy, rustfmt
+
+      - name: Cache cargo registry & target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Clippy (userspace)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Run tests (userspace)
+        run: cargo test --workspace
+
+  build-ebpf:
+    name: Build eBPF program
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust nightly
+        uses: dtolnay/rust-action/setup@v1
+        with:
+          toolchain: nightly
+          components: rust-src
+
+      - name: Install bpf-linker
+        run: cargo install bpf-linker
+
+      - name: Build eBPF
+        run: cargo xtask build-ebpf
+
+  build-release:
+    name: Build release binary
+    runs-on: ubuntu-latest
+    needs: [check, build-ebpf]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchains
+        run: |
+          rustup toolchain install stable
+          rustup toolchain install nightly --component rust-src
+
+      - name: Install bpf-linker
+        run: cargo install bpf-linker
+
+      - name: Build eBPF (release)
+        run: cargo xtask build-ebpf --release
+
+      - name: Build userspace (release)
+        run: cargo build --release

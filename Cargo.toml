@@ -1,3 +1,8 @@
 [workspace]
 members = ["xtask", "arp", "arp-common"]
 resolver = "2"
+
+[workspace.dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread", "net", "signal", "time"] }
