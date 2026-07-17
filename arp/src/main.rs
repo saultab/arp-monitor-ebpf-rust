@@ -19,7 +19,10 @@ use arp_common::Event;
 use detection::{ArpTable, SpoofAlert};
 
 #[derive(Debug, Parser)]
-#[command(name = "arp-monitor", about = "eBPF-powered ARP traffic monitor with spoofing detection")]
+#[command(
+    name = "arp-monitor",
+    about = "eBPF-powered ARP traffic monitor with spoofing detection"
+)]
 struct Opt {
     /// Network interface to attach to
     #[arg(short, long, default_value = "eth0")]
@@ -80,7 +83,10 @@ fn parse_whitelist(entries: &[String]) -> Result<HashMap<Ipv4Addr, [u8; 6]>> {
     for entry in entries {
         let parts: Vec<&str> = entry.splitn(2, '=').collect();
         if parts.len() != 2 {
-            anyhow::bail!("Invalid whitelist entry '{}'. Expected format: IP=MAC", entry);
+            anyhow::bail!(
+                "Invalid whitelist entry '{}'. Expected format: IP=MAC",
+                entry
+            );
         }
         let ip: Ipv4Addr = parts[0]
             .parse()
@@ -99,8 +105,8 @@ fn parse_mac(s: &str) -> Result<[u8; 6]> {
     }
     let mut mac = [0u8; 6];
     for (i, part) in parts.iter().enumerate() {
-        mac[i] = u8::from_str_radix(part, 16)
-            .with_context(|| format!("Invalid hex octet: {}", part))?;
+        mac[i] =
+            u8::from_str_radix(part, 16).with_context(|| format!("Invalid hex octet: {}", part))?;
     }
     Ok(mac)
 }
@@ -112,7 +118,10 @@ fn bump_memlock_rlimit() {
     };
     let ret = unsafe { libc::setrlimit(libc::RLIMIT_MEMLOCK, &rlim) };
     if ret != 0 {
-        debug!("Failed to remove memlock rlimit (ret={}), may fail on older kernels", ret);
+        debug!(
+            "Failed to remove memlock rlimit (ret={}), may fail on older kernels",
+            ret
+        );
     }
 }
 
@@ -121,17 +130,15 @@ async fn main() -> Result<()> {
     let opt = Opt::parse();
 
     // Initialize tracing
-    let subscriber = tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| {
-                    if opt.verbose {
-                        "arp=debug".into()
-                    } else {
-                        "arp=info".into()
-                    }
-                }),
-        );
+    let subscriber = tracing_subscriber::fmt().with_env_filter(
+        tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+            if opt.verbose {
+                "arp=debug".into()
+            } else {
+                "arp=info".into()
+            }
+        }),
+    );
 
     if opt.json {
         subscriber.json().init();
@@ -142,8 +149,7 @@ async fn main() -> Result<()> {
     info!(interface = %opt.iface, "Starting ARP monitor");
 
     // Parse whitelist
-    let whitelist = parse_whitelist(&opt.whitelist)
-        .context("Failed to parse whitelist")?;
+    let whitelist = parse_whitelist(&opt.whitelist).context("Failed to parse whitelist")?;
     if !whitelist.is_empty() {
         info!(count = whitelist.len(), "Loaded trusted IP-MAC entries");
     }
